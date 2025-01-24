@@ -33,6 +33,9 @@
     ],
     "externalBin": [
       "binaries/server"
+    ],
+    "resources": [
+      "python/server.py"
     ]
   }
 }

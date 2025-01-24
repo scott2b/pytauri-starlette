@@ -100,6 +100,16 @@ pnpm tauri dev
 - Ensure the Python executable is built with the correct target triple suffix
 - Check the PyInstaller build output for any missing dependencies
 - Verify the executable path in `tauri.conf.json` matches your platform
+- If the Python server appears to be running after closing the app, you can check for and kill lingering processes:
+  ```bash
+  # On macOS/Linux:
+  ps aux | grep server
+  kill <PID>
+
+  # On Windows:
+  tasklist | findstr server
+  taskkill /PID <PID> /F
+  ```
 
 ### Tauri Build
 - Check `src-tauri/target/debug/build/` for build logs

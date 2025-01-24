@@ -5,7 +5,10 @@ use tauri::State;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tauri_plugin_shell::ShellExt;
-use tauri_plugin_shell::process::CommandChild;
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
+use std::time::Duration;
+use std::thread;
+use serde_json;
 
 pub struct PythonSidecar(pub Mutex<Option<CommandChild>>);
 
@@ -41,14 +44,44 @@ pub async fn start_python_server<R: Runtime>(
     Ok(())
 }
 
+async fn try_graceful_shutdown() -> Result<(), reqwest::Error> {
+    let client = Client::new();
+    // Trigger FastAPI's shutdown event
+    let response = client
+        .post("http://127.0.0.1:8000/shutdown")
+        .timeout(Duration::from_secs(2))
+        .send()
+        .await?;
+    
+    // Wait for response to ensure shutdown was received
+    let _ = response.json::<serde_json::Value>().await?;
+    Ok(())
+}
+
 #[tauri::command]
-pub async fn stop_python_server(
+pub fn stop_python_server(
     sidecar: State<'_, PythonSidecar>,
 ) -> Result<(), String> {
     let mut sidecar = sidecar.0.lock().map_err(|e| e.to_string())?;
     
-    if let Some(mut child) = sidecar.take() {
-        child.kill().map_err(|e| e.to_string())?;
+    if let Some(child) = sidecar.take() {
+        // Try graceful shutdown through FastAPI/Uvicorn
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let _ = rt.block_on(try_graceful_shutdown());
+        
+        // Get PID before we move child with kill()
+        #[cfg(unix)]
+        let pid = child.pid();
+        
+        // Send termination signal
+        let _ = child.kill();
+        thread::sleep(Duration::from_millis(500));
+        
+        // Try direct signal as last resort
+        #[cfg(unix)]
+        unsafe {
+            libc::kill(pid as i32, libc::SIGKILL);
+        }
     }
     
     Ok(())

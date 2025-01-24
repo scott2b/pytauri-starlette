@@ -1,101 +1,122 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core'
-  import { onMount } from 'svelte'
+  import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
 
-  let inputText = ''
-  let processedText = ''
-  let error = ''
+  let text = '';
+  let result = '';
+  let error = '';
+  let isLoading = true;
+  let isProcessing = false;
 
-  onMount(async () => {
+  async function initServer() {
     try {
-      await invoke('start_python_server')
+      isLoading = true;
+      await invoke('start_python_server');
+      error = '';
     } catch (e) {
-      error = `Failed to start Python server: ${e}`
-    }
-  })
-
-  async function processText() {
-    try {
-      processedText = await invoke('process_text', { text: inputText })
-      error = ''
-    } catch (e) {
-      error = `Error processing text: ${e}`
-      processedText = ''
+      error = e;
+    } finally {
+      isLoading = false;
     }
   }
+
+  async function processText() {
+    if (!text) return;
+    
+    try {
+      isProcessing = true;
+      error = '';
+      result = await invoke('process_text', { text });
+    } catch (e) {
+      error = e;
+      result = '';
+    } finally {
+      isProcessing = false;
+    }
+  }
+
+  onMount(() => {
+    initServer();
+  });
 </script>
 
-<main class="container">
+<main>
   <h1>Python Text Processor</h1>
-  
-  <div class="row">
-    <input
-      type="text"
-      bind:value={inputText}
-      placeholder="Enter text to process"
-    />
-    <button on:click={processText}>Process Text</button>
-  </div>
 
-  {#if processedText}
-    <div class="result">
-      <h2>Processed Text:</h2>
-      <p>{processedText}</p>
+  {#if isLoading}
+    <div class="loading">
+      <span class="spinner"></span>
+      <p>Starting server...</p>
     </div>
-  {/if}
+  {:else}
+    <div class="input-group">
+      <input
+        type="text"
+        bind:value={text}
+        disabled={isProcessing}
+        placeholder="Enter text to process"
+      />
+      <button 
+        on:click={processText} 
+        disabled={isProcessing || !text}
+      >
+        {#if isProcessing}
+          Processing...
+        {:else}
+          Process Text
+        {/if}
+      </button>
+    </div>
 
-  {#if error}
-    <div class="error">
-      <p>{error}</p>
-    </div>
+    {#if result}
+      <div class="result">
+        <h2>Result:</h2>
+        <p>{result}</p>
+      </div>
+    {/if}
+
+    {#if error}
+      <div class="error">
+        <p>{error}</p>
+      </div>
+    {/if}
   {/if}
 </main>
 
 <style>
-  .container {
-    padding: 2rem;
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  .row {
+  .loading {
     display: flex;
-    gap: 1rem;
+    flex-direction: column;
+    align-items: center;
     margin: 2rem 0;
   }
 
-  input {
-    flex: 1;
-    padding: 0.5rem;
-    font-size: 1rem;
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
 
-  button {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-    background: #646cff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 
-  button:hover {
-    background: #747bff;
-  }
-
-  .result {
-    margin-top: 2rem;
-    padding: 1rem;
-    background: #f0f0f0;
-    border-radius: 4px;
+  .input-group {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
   }
 
   .error {
-    margin-top: 2rem;
-    padding: 1rem;
-    background: #ffebee;
-    color: #c62828;
-    border-radius: 4px;
+    color: red;
+    margin: 1rem 0;
+  }
+
+  .result {
+    margin: 1rem 0;
   }
 </style>

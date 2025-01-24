@@ -5,7 +5,7 @@ use tauri::State;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tauri_plugin_shell::ShellExt;
-use tauri_plugin_shell::process::{CommandChild, CommandEvent};
+use tauri_plugin_shell::process::CommandChild;
 use std::time::Duration;
 use std::thread;
 use serde_json;
@@ -24,17 +24,42 @@ pub struct TextResponse {
     processed_text: String,
 }
 
+async fn wait_for_server_ready() -> Result<(), String> {
+    let client = Client::new();
+    let start = std::time::Instant::now();
+    let timeout = Duration::from_secs(10);
+
+    while start.elapsed() < timeout {
+        match client
+            .get(format!("http://127.0.0.1:{}/health", SIDECAR_PORT))
+            .timeout(Duration::from_secs(1))
+            .send()
+            .await
+        {
+            Ok(_) => return Ok(()),
+            Err(_) => {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                continue;
+            }
+        }
+    }
+    Err("Server failed to start within timeout period".to_string())
+}
+
 #[tauri::command]
 pub async fn start_python_server<R: Runtime>(
     app: AppHandle<R>,
     sidecar: State<'_, PythonSidecar>,
 ) -> Result<(), String> {
-    let mut sidecar = sidecar.0.lock().map_err(|e| e.to_string())?;
-    
-    if sidecar.is_some() {
-        return Ok(());
+    // First check if server is already running
+    {
+        let sidecar = sidecar.0.lock().map_err(|e| e.to_string())?;
+        if sidecar.is_some() {
+            return Ok(());
+        }
     }
 
+    // Start the server
     let (mut _rx, child) = app
         .shell()
         .sidecar("server")
@@ -42,7 +67,15 @@ pub async fn start_python_server<R: Runtime>(
         .spawn()
         .map_err(|e| e.to_string())?;
 
-    *sidecar = Some(child);
+    // Store the child process
+    {
+        let mut sidecar = sidecar.0.lock().map_err(|e| e.to_string())?;
+        *sidecar = Some(child);
+    }
+
+    // Wait for server to be ready
+    wait_for_server_ready().await?;
+
     Ok(())
 }
 

@@ -41,9 +41,14 @@ async def _delayed_exit():
     await asyncio.sleep(0.5)
     os._exit(0)
 
+async def health(request):
+    """Health check endpoint"""
+    return JSONResponse({"status": "ok"})
+
 routes = [
     Route('/process', process_text, methods=['POST']),
-    Route('/shutdown', shutdown, methods=['POST'])
+    Route('/shutdown', shutdown, methods=['POST']),
+    Route('/health', health, methods=['GET'])
 ]
 
 app = Starlette(debug=True, routes=routes)

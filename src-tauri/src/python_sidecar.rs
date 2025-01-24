@@ -10,6 +10,8 @@ use std::time::Duration;
 use std::thread;
 use serde_json;
 
+const SIDECAR_PORT: u16 = 1421;
+
 pub struct PythonSidecar(pub Mutex<Option<CommandChild>>);
 
 #[derive(Serialize, Deserialize)]
@@ -48,7 +50,7 @@ async fn try_graceful_shutdown() -> Result<(), reqwest::Error> {
     let client = Client::new();
     // Trigger FastAPI's shutdown event
     let response = client
-        .post("http://127.0.0.1:8000/shutdown")
+        .post(format!("http://127.0.0.1:{}/shutdown", SIDECAR_PORT))
         .timeout(Duration::from_secs(2))
         .send()
         .await?;
@@ -91,7 +93,7 @@ pub fn stop_python_server(
 pub async fn process_text(text: String) -> Result<String, String> {
     let client = Client::new();
     let response = client
-        .post("http://127.0.0.1:8000/process")
+        .post(format!("http://127.0.0.1:{}/process", SIDECAR_PORT))
         .json(&TextRequest { text })
         .send()
         .await

@@ -35,6 +35,12 @@
     }
   }
 
+  function clearAll() {
+    text = '';
+    result = '';
+    error = '';
+  }
+
   onMount(() => {
     initServer();
   });
@@ -50,45 +56,62 @@
         <p>Starting server...</p>
       </div>
     {:else}
-      <div class="input-section">
-        <textarea
-          class="text-input"
-          bind:value={text}
-          disabled={isProcessing}
-          placeholder="Enter text to process..."
-          rows="4"
-        />
-        <button 
-          class="process-button"
-          class:processing={isProcessing}
-          on:click={processText} 
-          disabled={isProcessing || !text}
-        >
-          <span class="button-content">
-            {#if isProcessing}
-              <div class="button-spinner"></div>
-              Processing...
-            {:else}
-              Process Text
+      <div class="content-wrapper">
+        <div class="input-section">
+          <div class="textarea-wrapper">
+            <textarea
+              class="text-input"
+              bind:value={text}
+              disabled={isProcessing}
+              placeholder="Enter text to process..."
+              rows="4"
+            />
+            {#if text}
+              <button 
+                class="clear-button"
+                on:click={clearAll}
+                title="Clear all"
+              >
+                ×
+              </button>
             {/if}
-          </span>
-        </button>
-      </div>
-
-      {#if result}
-        <div class="result-section">
-          <h2>Result</h2>
-          <div class="result-content">
-            {result}
+          </div>
+          <div class="button-group">
+            <button 
+              class="process-button"
+              class:processing={isProcessing}
+              on:click={processText} 
+              disabled={isProcessing || !text}
+            >
+              <span class="button-content">
+                {#if isProcessing}
+                  <div class="button-spinner"></div>
+                  Processing...
+                {:else}
+                  Process Text
+                {/if}
+              </span>
+            </button>
           </div>
         </div>
-      {/if}
 
-      {#if error}
-        <div class="error-section">
-          <p>{error}</p>
+        <div class="output-section">
+          {#if result}
+            <div class="result-section">
+              <h2>Result</h2>
+              <div class="result-content">
+                {result}
+              </div>
+            </div>
+          {/if}
+
+          {#if error}
+            <div class="error-section">
+              <p>{error}</p>
+            </div>
+          {/if}
         </div>
-      {/if}
+      </div>
     {/if}
   </div>
 </main>
@@ -111,6 +134,8 @@
     width: 100%;
     max-width: 600px;
     transition: transform 0.2s ease;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .card:hover {
@@ -132,14 +157,21 @@
     font-weight: 600;
   }
 
-  .input-section {
+  .content-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 2rem;
+    gap: 1.5rem;
+    margin-top: -0.5rem;
+  }
+
+  .textarea-wrapper {
+    position: relative;
+    width: 100%;
   }
 
   .text-input {
+    box-sizing: border-box;
+    min-height: 100px;
     width: 100%;
     padding: 1rem;
     border: 2px solid #e2e8f0;
@@ -154,6 +186,35 @@
     outline: none;
     border-color: #4299e1;
     box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+  }
+
+  .clear-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    border: none;
+    background: #e2e8f0;
+    color: #4a5568;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .clear-button:hover {
+    background: #cbd5e0;
+    transform: scale(1.1);
+  }
+
+  .button-group {
+    display: flex;
+    gap: 1rem;
   }
 
   .process-button {
@@ -187,11 +248,17 @@
     gap: 0.5rem;
   }
 
+  .output-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
   .result-section {
     background: #f7fafc;
     border-radius: 0.5rem;
     padding: 1.5rem;
-    margin-top: 2rem;
+    margin-top: 0;
   }
 
   .result-content {
@@ -206,7 +273,7 @@
     color: #c53030;
     padding: 1rem;
     border-radius: 0.5rem;
-    margin-top: 1rem;
+    margin-top: 0;
     font-weight: 500;
   }
 
@@ -251,6 +318,10 @@
 
     h1 {
       font-size: 1.75rem;
+    }
+
+    .content-wrapper {
+      gap: 1rem;
     }
   }
 </style>
